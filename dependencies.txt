@@ -1,0 +1,5 @@
+pip install matplotlib
+pip install pyQT5
+pip install tkinter
+
+instalar no windows Xming X Server
