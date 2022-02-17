@@ -1,5 +1,3 @@
-import matplotlib 
-matplotlib.use('TKAgg')
 import matplotlib.pyplot as plt
 import matplotlib.colors as clr
 
@@ -16,8 +14,9 @@ def main():
     plt.close('all')
 
     img = plt.imread('imagens/peppers.bmp')
-    plt.figure()
-    plt.imshow(img)
+    figure = plt.figure()
+    # plt.imshow(img)
+    figure.figimage(img)
     
     print(img.shape)
 
@@ -47,5 +46,6 @@ def main():
 ## if T is a matrix -> Ti = np.linalg.inv(T) to get inversed matrix
 
 if __name__ == "__main__":
-    main()
     
+    main()
+    plt.show()
