@@ -43,16 +43,11 @@ def inversa(img):
 
 
 # Ex 3.5
-def show_img_and_rgb(img):
+def show_rgb(channel_R, channel_G, channel_B):
     K = (0, 0, 0)
     R = (1, 0, 0)
     G = (0, 1, 0)
-    B = (0, 0, 1)
-
-    channel_R, channel_G, channel_B = rgb_components(img)
-    
-    # isto é para usar algures em algum momento... idk when
-    # inv_R, inv_G, inv_B = inversa(img)
+    B = (0, 0, 1)    
 
     cm = colormap_function("Reds", K, R)                    # red
     draw_plot("channel_R", channel_R, cm)
@@ -100,35 +95,61 @@ def without_padding_function(img, img_with_padding):
     draw_plot("Recovered image <=> Original", img_recovered)
 
 
-# Ex 5
-def convert_rgb_to_YCbCr(img):
-    # print(img)
-    (lines_n, columns_n, channels_n) = img.shape
-    YCbCr_matrix = np.zeros(img.shape, dtype=np.float64)
+# Ex 5.1
+def rgb_to_ycbcr(img):
+    R, G, B = rgb_components(img)
+        
+    Y = (0.299 * R) + (0.587 * G) + (0.114 * B)
+    Cb = (-0.168736 * R) + (-0.331264 * G) + (0.5 * B) + 128
+    Cr = (0.5 * R) + (-0.418688 * G) + (-0.081312 * B) + 128
+    
+    return Y, Cb, Cr
+
+def ycbcr_to_rgb(Y, Cb, Cr):
     matrix = np.array([[0.299,   0.587,    0.114],
                        [-0.168736, -0.331264,     0.5],
                        [0.5, -0.418688, -0.081312]])
-    Cb_Cr_matrix = np.array([0,    128,     128])
+    T_matrix = np.linalg.inv(matrix)
 
-    for i in range(lines_n):
-        for j in range(columns_n):
-            RGB_matrix = np.array([img[i, j, 0], img[i, j, 1], img[i, j, 2]])
-            YCbCr_aux = matrix.dot(RGB_matrix) + Cb_Cr_matrix
-            YCbCr_matrix[i][j] = YCbCr_aux
+    R = np.round(T_matrix[0][0] * Y + T_matrix[0][1] * (Cb - 128) + T_matrix[0][2] * (Cr - 128))
+    R[R < 0] = 0
+    R[R > 255] = 255
+    
+    G = np.round(T_matrix[1][0] * Y + T_matrix[1][1] * (Cb - 128) + T_matrix[1][2] * (Cr - 128))
+    G[G < 0] = 0
+    G[G > 255] = 255
+    
+    B = np.round(T_matrix[2][0] * Y + T_matrix[2][1] * (Cb - 128) + T_matrix[2][2] * (Cr - 128))
+    B[B < 0] = 0
+    B[B > 255] = 255
 
-    draw_plot("Image with YCbCr model", (YCbCr_matrix*255).astype(np.uint8))
+    return np.uint8(R), np.uint8(G), np.uint8(B)
+    
+    
+    
+# Ex 5.3
+def show_ycbcr(Y, Cb, Cr):
+    K = (0, 0, 0)
+    W = (1, 1, 1)
+    cm = colormap_function("Whites", K, W)
+    draw_plot("Y", Y, cm)
+    draw_plot("Cb", Cb, cm)
+    draw_plot("Cr", Cr, cm)
 
 
 # -------------------------------------------------------------------------------------------- #
 def encoder(img):
-    show_img_and_rgb(img)                                   # mostrar imagem + canais RGB
-    padding_function(img)                                   # padding
-    without_padding_function(img, padding_function(img))    # padding inverso
-    convert_rgb_to_YCbCr(img)                               # converter RGB para YCbCr
-    
+    R, G, B = rgb_components(img)
+    show_rgb(R, G, B)                                   # mostrar imagem + canais RGB
+    padding_function(img)                               # padding
+    Y, Cb, Cr = rgb_to_ycbcr(img)
+    R, G, B = ycbcr_to_rgb(Y, Cb, Cr)
+    show_ycbcr(Y, Cb, Cr)
+    show_rgb(R, G, B)
 
 def decoder(img):
     pass
+    # without_padding_function(img, padding_function(img))    # padding inverso
 # -------------------------------------------------------------------------------------------- #
 
 
