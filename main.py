@@ -62,16 +62,25 @@ def padding_function(img):
     (lines_n, columns_n, channels_n) = img.shape
     num_lines_to_add = 0
     num_columns_to_add = 0
+    print(img.shape)        
 
     if columns_n % 16 != 0:
         num_columns_to_add = (16 - (columns_n % 16))
-        for i in range(num_columns_to_add):
-            img = np.hstack((img, img[:, -1:]))
+        array = img[:, -1:]
+        
+        #aux = np.hstack((img, img[:, -1:]))
+        aux_2 = np.repeat(array, num_columns_to_add, axis=1)
+        img = np.append(img, aux_2, axis= 1)
 
     if lines_n % 16 != 0:
         num_lines_to_add = (16 - (lines_n % 16))
-        for i in range(num_lines_to_add):
-            img = np.vstack((img, img[-1:]))
+        #img = np.vstack((img, img[-1:]))
+        array= img[-1:]
+        aux_2= np.repeat(array, num_lines_to_add, axis=0)
+        img = np.append(img, aux_2, axis= 0)
+        
+    print(img.shape)        
+    draw_plot("imagem com padding", img)
     return img
 
 
@@ -83,7 +92,6 @@ def without_padding_function(img, img_with_padding):
     (lines_n, columns_n, channels_n) = img.shape
     (lines_n_padding, columns_n_padding, channels_n_padding) = img_with_padding.shape
     
-    # acrescentei esta linha porque é necessário inicializar a variável antes dela entrar no if
     img_recovered = img_with_padding
 
     if(lines_n_padding-lines_n != 0):
