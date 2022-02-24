@@ -1,9 +1,9 @@
+from ntpath import join
 import matplotlib.pyplot as plt
 import matplotlib.colors as clr
 import numpy as np
 import os
 import menu 
-
 
 # Ex 3.1
 def read_image(img_path):
@@ -35,11 +35,15 @@ def rgb_components(img):
 
 
 # if T is a matrix -> Ti = np.linalg.inv(T) to get inversed matrix
-def inversa(img):
-    
-    R, G, B = rgb_components(img)
+def join_RGB(R, G, B):
+    matrix_inverted = np.zeros((len(R), len(R[0]), 3), dtype = np.uint8)
     # return tuple (R_inv, G_inv, B_inv)
-    return np.linalg.inv(R), np.linalg.inv(G), np.linalg.inv(B)
+    #aux = np.append(R, G, axis = 1)
+    #matrix_inverted = np.append(aux, B, axis = 1)
+    matrix_inverted[:,:,0] = R
+    matrix_inverted[:,:,1] = G
+    matrix_inverted[:,:,2] = B
+    return matrix_inverted
 
 
 # Ex 3.5
@@ -50,63 +54,48 @@ def show_rgb(channel_R, channel_G, channel_B):
     B = (0, 0, 1)    
 
     cm = colormap_function("Reds", K, R)                    # red
-    draw_plot("channel_R", channel_R, cm)
+    draw_plot("Encoder - channel_R with padding", channel_R, cm)
     cm = colormap_function("Greens", K, G)                  # green
-    draw_plot("channel_G", channel_G, cm)
+    draw_plot("Encoder - channel_G with padding", channel_G, cm)
     cm = colormap_function("Blues", K, B)                   # blue
-    draw_plot("channel_B", channel_B, cm)
+    draw_plot("Encoder - channel_B with padding", channel_B, cm)
 
 
 # Ex 4
-def padding_function(img):
-    (lines_n, columns_n, channels_n) = img.shape
+def padding_function(img, lines, columns):
     num_lines_to_add = 0
     num_columns_to_add = 0
     print(img.shape)        
 
-    if columns_n % 16 != 0:
-        num_columns_to_add = (16 - (columns_n % 16))
+    if columns % 16 != 0:
+        num_columns_to_add = (16 - (columns % 16))
         array = img[:, -1:]
-        
-        #aux = np.hstack((img, img[:, -1:]))
+
         aux_2 = np.repeat(array, num_columns_to_add, axis=1)
         img = np.append(img, aux_2, axis= 1)
 
-    if lines_n % 16 != 0:
-        num_lines_to_add = (16 - (lines_n % 16))
-        #img = np.vstack((img, img[-1:]))
+    if lines % 16 != 0:
+        num_lines_to_add = (16 - (lines % 16))
         array= img[-1:]
         aux_2= np.repeat(array, num_lines_to_add, axis=0)
         img = np.append(img, aux_2, axis= 0)
         
     print(img.shape)        
-    draw_plot("imagem com padding", img)
-    return img
+    draw_plot("Encoder - Image with padding", img)
+    global img_padded 
+    img_padded = img
+    return img_padded
 
 
-def without_padding_function(img, img_with_padding):
-
-    draw_plot("Original image", img)
-    draw_plot("Image with Padding", img_with_padding)
-
-    (lines_n, columns_n, channels_n) = img.shape
-    (lines_n_padding, columns_n_padding, channels_n_padding) = img_with_padding.shape
-    
-    img_recovered = img_with_padding
-
-    if(lines_n_padding-lines_n != 0):
-        img_recovered = img_with_padding[:-(lines_n_padding-lines_n), :, :]
-        img_with_padding = img_recovered
-    if(columns_n_padding-columns_n != 0):
-        img_recovered = img_with_padding[:, :-(columns_n_padding-columns_n), :]
-
-    draw_plot("Recovered image <=> Original", img_recovered)
+# passar logo n linhas e colunas 
+def without_padding_function(img_with_padding, lines, columns):
+    img_recovered = img_with_padding[:lines, :, :]
+    img_recovered = img_recovered[:, :columns, :]
+    return img_recovered
 
 
 # Ex 5.1
-def rgb_to_ycbcr(img):
-    R, G, B = rgb_components(img)
-        
+def rgb_to_ycbcr(R, G, B):
     Y = (0.299 * R) + (0.587 * G) + (0.114 * B)
     Cb = (-0.168736 * R) + (-0.331264 * G) + (0.5 * B) + 128
     Cr = (0.5 * R) + (-0.418688 * G) + (-0.081312 * B) + 128
@@ -140,24 +129,31 @@ def show_ycbcr(Y, Cb, Cr):
     K = (0, 0, 0)
     W = (1, 1, 1)
     cm = colormap_function("Whites", K, W)
-    draw_plot("Y", Y, cm)
-    draw_plot("Cb", Cb, cm)
-    draw_plot("Cr", Cr, cm)
+    draw_plot("Encoder - Y with padding", Y, cm)
+    draw_plot("Encoder - Cb with padding", Cb, cm)
+    draw_plot("Encoder - Cr with padding", Cr, cm)
 
 
 # -------------------------------------------------------------------------------------------- #
-def encoder(img):
-    R, G, B = rgb_components(img)
-    show_rgb(R, G, B)                                   # mostrar imagem + canais RGB
-    padding_function(img)                               # padding
-    Y, Cb, Cr = rgb_to_ycbcr(img)
-    R, G, B = ycbcr_to_rgb(Y, Cb, Cr)
+def encoder(img, lines, columns):
+    
+    img_padded = padding_function(img, lines, columns) 
+    R_p, G_p, B_p = rgb_components(img_padded)         
+    show_rgb(R_p, G_p, B_p)          
+    Y, Cb, Cr = rgb_to_ycbcr(R_p, G_p, B_p)
+    
     show_ycbcr(Y, Cb, Cr)
-    show_rgb(R, G, B)
+    
+    # retornar sempre o mais recente
+    return Y, Cb, Cr
 
-def decoder(img):
-    pass
-    # without_padding_function(img, padding_function(img))    # padding inverso
+def decoder(Y, Cb, Cr, n_lines, n_columns):
+    R, G, B = ycbcr_to_rgb(Y, Cb, Cr)
+    matrix_joined_rgb = join_RGB(R, G, B)
+    img_without_padding = without_padding_function(matrix_joined_rgb, n_lines, n_columns)
+    draw_plot("decoder - Img without padding", img_without_padding)
+    draw_plot("decoder - RGB channels joined with padding", matrix_joined_rgb)
+    print(f"Decoder - Final shape: {img_without_padding.shape}" )
 # -------------------------------------------------------------------------------------------- #
 
 
@@ -165,15 +161,16 @@ def main():
 
     plt.close('all')
 
-    # menu.show_menu()
-
     dir_path = os.path.dirname(os.path.realpath(__file__))
     img_name = input("Image name: ")
     img_path = dir_path + "/imagens/" + img_name + ".bmp"
     img = read_image(img_path)
 
-    encoder(img)
-    # decoder(img) 
+    (lines, columns, channels) = img.shape
+    
+    # retornar sempre o mais recente !!!
+    Y, Cb, Cr = encoder(img, lines, columns)
+    decoder(Y, Cb, Cr, lines, columns) 
 
 
 if __name__ == "__main__":
