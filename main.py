@@ -5,6 +5,7 @@ import numpy as np
 import os
 import menu
 import scipy.fftpack as fft
+import cv2
 
 # Ex 3.1
 
@@ -71,6 +72,8 @@ def show_rgb(channel_R, channel_G, channel_B):
     fig.add_subplot(1, 3, 3)
     plt.title("Channel B with padding")
     plt.imshow(channel_B, cmap=cm_blue)
+
+    plt.subplots_adjust(wspace=0.5)
 
 
 # Ex 4
@@ -169,18 +172,31 @@ def show_ycbcr(Y, Cb, Cr):
     plt.title("Cr")
     plt.imshow(Cr, cmap=cm)
 
+    plt.subplots_adjust(wspace=0.5)
+
 
 # Ex 6.1
 def downsampling(Y, Cb, Cr, Yref, fatorCr, fatorCb):
-    Cr_d = Cr[:, ::fatorCr]
+    #Cr_d = Cr[:, ::fatorCr]
 
     if fatorCb == 0:
-        # Eliminates rows & columns of Cb, Cr
-        Cb_d = Cb[::fatorCr, ::fatorCr]
-        Cr_d = Cr_d[::fatorCr]
+        scaleX = 0.5
+        scaleY = 0.5
+
+        Cb_d = cv2.resize(Cb, None, fx=scaleX, fy=scaleY,
+                          interpolation=cv2.INTER_NEAREST)
+        Cr_d = cv2.resize(Cr, None, fx=scaleX, fy=scaleY,
+                          interpolation=cv2.INTER_NEAREST)
+        #Cb_d = Cb[::fatorCr, ::fatorCr]
+        #Cr_d = Cr_d[::fatorCr]
     else:
-        # Eliminates columns of Cb
-        Cb_d = Cb[:, ::fatorCb]
+        scaleX = 0.5
+        scaleY = 1
+        Cb_d = cv2.resize(Cb, None, fx=scaleX, fy=scaleY,
+                          interpolation=cv2.INTER_NEAREST)
+        Cr_d = cv2.resize(Cr, None, fx=scaleX, fy=scaleY,
+                          interpolation=cv2.INTER_NEAREST)
+        #Cb_d = Cb[:, ::fatorCb]
 
     return Y, Cb_d, Cr_d
 
@@ -188,12 +204,30 @@ def downsampling(Y, Cb, Cr, Yref, fatorCr, fatorCb):
 def upsampling(Y_d, Cb_d, Cr_d, type):
 
     if type == 0:
-        Cb_u = Cb_d.repeat(2, axis=0).repeat(2, axis=1)
-        Cr_u = Cr_d.repeat(2, axis=0).repeat(2, axis=1)
+        scaleX = 0.5
+        scaleY = 0.5
+        stepX = int(1//scaleX)
+        stepY = int(1//scaleY)
+
+        Cb_u = cv2.resize(Cb_d, None, fx=stepX, fy=stepY,
+                          interpolation=cv2.INTER_LINEAR)
+        Cr_u = cv2.resize(Cr_d, None, fx=stepX, fy=stepY,
+                          interpolation=cv2.INTER_LINEAR)
+
+        #Cb_u = Cb_d.repeat(2, axis=0).repeat(2, axis=1)
+        #Cr_u = Cr_d.repeat(2, axis=0).repeat(2, axis=1)
 
     else:
-        Cb_u = Cb_d.repeat(2, axis=1)
-        Cr_u = Cr_d.repeat(2, axis=1)
+        scaleX = 0.5
+        scaleY = 1
+        stepX = int(1//scaleX)
+        stepY = int(1//scaleY)
+        Cb_u = cv2.resize(Cb_d, None, fx=stepX, fy=stepY,
+                          interpolation=cv2.INTER_LINEAR)
+        Cr_u = cv2.resize(Cr_d, None, fx=stepX, fy=stepY,
+                          interpolation=cv2.INTER_LINEAR)
+        #Cb_u = Cb_d.repeat(2, axis=1)
+        #Cr_u = Cr_d.repeat(2, axis=1)
 
     return Y_d, Cb_u, Cr_u
 
@@ -241,6 +275,8 @@ def dct(Y_d, Cb_d, Cr_d, blocks):
     plt.imshow(Cr_dct_log, cmap=gray_colormap)
     plt.colorbar(shrink=0.5)
 
+    plt.subplots_adjust(wspace=0.5)
+
     return Y_dct, Cb_dct, Cr_dct
 
 
@@ -277,6 +313,7 @@ def dct_inverse(Y_dct, Cb_dct, Cr_dct, blocks):
     fig.add_subplot(1, 3, 3)
     plt.title("Cr inverse_dct")
     plt.imshow(Cr_d, cmap=gray_colormap)
+    plt.subplots_adjust(wspace=0.5)
 
     return Y_d, Cb_d, Cr_d
 
@@ -298,39 +335,40 @@ def encoder(img, lines, columns):
 
     # Plotting
     fig = plt.figure()
+    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
 
     # Cb original
     fig.add_subplot(3, 2, 1)
     plt.title("Cb - Original")
-    plt.imshow(Cb)
+    plt.imshow(Cb, cmap=gray_colormap)
 
     # Cr original
     fig.add_subplot(3, 2, 2)
     plt.title("Cr - Original")
-    plt.imshow(Cr)
+    plt.imshow(Cr, cmap=gray_colormap)
 
     # Cb downsampled 4:2:2
     fig.add_subplot(3, 2, 3)
     plt.title("Cb - Downsampling 4:2:2")
-    plt.imshow(Cb_d)
+    plt.imshow(Cb_d, cmap=gray_colormap)
 
     # Cr downsampled 4:2:2
     fig.add_subplot(3, 2, 4)
     plt.title("Cr - Downsampling 4:2:2")
-    plt.imshow(Cr_d)
+    plt.imshow(Cr_d, cmap=gray_colormap)
 
     # Cb downsampled 4:2:0
     fig.add_subplot(3, 2, 5)
     plt.title("Cb - Downsampling 4:2:0")
-    plt.imshow(Cb_d0)
+    plt.imshow(Cb_d0, cmap=gray_colormap)
 
     # Cr downsampled 4:2:0
     fig.add_subplot(3, 2, 6)
     plt.title("Cr - Downsampling 4:2:0")
-    plt.imshow(Cr_d0)
-    
+    plt.imshow(Cr_d0, cmap=gray_colormap)
+
     plt.subplots_adjust(hspace=0.5)
-    
+
     # -- 7.1 --
     Y_dct, Cb_dct, Cr_dct = dct(Y_d0, Cb_d0, Cr_d0, "all")
 
@@ -356,13 +394,18 @@ def decoder(Y_dct, Cb_dct, Cr_dct, n_lines, n_columns):
     matrix_joined_rgb = join_RGB(R, G, B)
 
     # -- 3 --
-    draw_plot("RGB channels joined with padding", matrix_joined_rgb)
+    fig = plt.figure()
+    fig.add_subplot(1, 2, 1)
+    plt.title("RGB channels joined with padding")
+    plt.imshow(matrix_joined_rgb)
 
     # -- 4 --
     # Remove image padding
     img_without_padding = without_padding_function(
         matrix_joined_rgb, n_lines, n_columns)
-    draw_plot("Final Image", img_without_padding)
+    fig.add_subplot(1, 2, 2)
+    plt.title("Final Image")
+    plt.imshow(img_without_padding)
 
     print(f"Final shape: {img_without_padding.shape}")
 # -------------------------------------------------------------------------------------------- #
