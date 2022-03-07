@@ -233,89 +233,67 @@ def upsampling(Y_d, Cb_d, Cr_d, type):
 
 
 # Ex 7
-def dct(Y_d, Cb_d, Cr_d, blocks):
+def dct(canal, blocks):
+    canal_dct_log = np.zeros(canal.shape)
+    canal_dct = np.zeros(canal.shape)
 
     if blocks == "all":
-        Y_dct = fft.dct(fft.dct(Y_d, norm="ortho").T, norm="ortho").T
-        Y_dct_log = np.log(np.abs(Y_dct) + 0.0001)
-
-        Cb_dct = fft.dct(fft.dct(Cb_d, norm="ortho").T, norm="ortho").T
-        Cb_dct_log = np.log(np.abs(Cb_dct) + 0.0001)
-
-        Cr_dct = fft.dct(fft.dct(Cr_d, norm="ortho").T, norm="ortho").T
-        Cr_dct_log = np.log(np.abs(Cr_dct) + 0.0001)
+        canal_dct = fft.dct(fft.dct(canal, norm="ortho").T, norm="ortho").T
+        canal_dct_log = np.log(np.abs(canal_dct) + 0.0001)
 
     # 7.2 - fazer mais tarde
     elif blocks == "8":
-        pass
+        for i in range(0, len(canal), 8):
+            for j in range(0, len(canal[0]), 8):
+                canal_sliced = canal[i:i+8, j:j+8]
+                canal_dct[i:i+8, j:j+8] = fft.dct(
+                    fft.dct(canal_sliced, norm="ortho").T, norm="ortho").T
+
+                canal_aux = fft.dct(
+                    fft.dct(canal_sliced, norm="ortho").T, norm="ortho").T
+                canal_dct_log[i:i+8, j:j +
+                              8] = np.log(np.abs(canal_aux) + 0.0001)
 
     # 7.3 - fazer mais tarde
     elif blocks == "64":
-        pass
+        for i in range(0, len(canal), 64):
+            for j in range(0, len(canal[0]), 64):
+                canal_sliced = canal[i:i+64, j:j+64]
+                canal_dct[i:i+64, j:j+64] = fft.dct(
+                    fft.dct(canal_sliced, norm="ortho").T, norm="ortho").T
 
-    # Plotting
-    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
-    fig = plt.figure()
+                canal_aux = fft.dct(
+                    fft.dct(canal_sliced, norm="ortho").T, norm="ortho").T
+                canal_dct_log[i:i+64, j:j +
+                              64] = np.log(np.abs(canal_aux) + 0.0001)
 
-    # Y DCT
-    fig.add_subplot(1, 3, 1)
-    plt.title("Y DCT")
-    plt.imshow(Y_dct_log, cmap=gray_colormap)
-    plt.colorbar(shrink=0.5)
-
-    # Cb DCT
-    fig.add_subplot(1, 3, 2)
-    plt.title("Cb DCT")
-    plt.imshow(Cb_dct_log, cmap=gray_colormap)
-    plt.colorbar(shrink=0.5)
-
-    # Cr DCT
-    fig.add_subplot(1, 3, 3)
-    plt.title("Cr DCT")
-    plt.imshow(Cr_dct_log, cmap=gray_colormap)
-    plt.colorbar(shrink=0.5)
-
-    plt.subplots_adjust(wspace=0.5)
-
-    return Y_dct, Cb_dct, Cr_dct
+    return canal_dct, canal_dct_log
 
 
-def dct_inverse(Y_dct, Cb_dct, Cr_dct, blocks):
+def dct_inverse(canal_dct,  blocks):
+    canal_d = np.zeros(canal_dct.shape)
+    canal_ = np.zeros(canal_dct.shape)
 
     if blocks == "all":
-        Y_d = fft.idct(fft.idct(Y_dct, norm="ortho").T, norm="ortho").T
-        Cb_d = fft.idct(fft.idct(Cb_dct, norm="ortho").T, norm="ortho").T
-        Cr_d = fft.idct(fft.idct(Cr_dct, norm="ortho").T, norm="ortho").T
+        canal_d = fft.idct(fft.idct(canal_dct, norm="ortho").T, norm="ortho").T
 
-    # 7.2 - fazer mais tarde
+    # 7.2
     elif blocks == "8":
-        pass
+        for i in range(0, len(canal_dct), 8):
+            for j in range(0, len(canal_dct[0]), 8):
+                canal_da = canal_dct[i:i+8, j:j+8]
+                canal_d[i:i+8, j:j+8] = fft.idct(
+                    fft.idct(canal_da, norm="ortho").T, norm="ortho").T
 
-    # 7.3 - fazer mais tarde
+    # 7.3
     elif blocks == "64":
-        pass
+        for i in range(0, len(canal_dct), 64):
+            for j in range(0, len(canal_dct[0]), 64):
+                canal_dct_sliced = canal_dct[i:i+64, j:j+64]
+                canal_d[i:i+64, j:j+64] = fft.idct(
+                    fft.idct(canal_dct_sliced, norm="ortho").T, norm="ortho").T
 
-    # Plotting
-    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
-    fig = plt.figure()
-
-    # Y inverse DCT
-    fig.add_subplot(1, 3, 1)
-    plt.title("Y inverse_dct")
-    plt.imshow(Y_d, cmap=gray_colormap)
-
-    # Cb inverse DCT
-    fig.add_subplot(1, 3, 2)
-    plt.title("Cb inverse_dct")
-    plt.imshow(Cb_d, cmap=gray_colormap)
-
-    # Cr inverse DCT
-    fig.add_subplot(1, 3, 3)
-    plt.title("Cr inverse_dct")
-    plt.imshow(Cr_d, cmap=gray_colormap)
-    plt.subplots_adjust(wspace=0.5)
-
-    return Y_d, Cb_d, Cr_d
+    return canal_d
 
 
 # -------------------------------------------------------------------------------------------- #
@@ -370,14 +348,42 @@ def encoder(img, lines, columns):
     plt.subplots_adjust(hspace=0.5)
 
     # -- 7.1 --
-    Y_dct, Cb_dct, Cr_dct = dct(Y_d0, Cb_d0, Cr_d0, "all")
+    Y_dct, Y_dct_log = dct(Y_d0, "8")
+    Cb_dct, Cb_dct_log = dct(Cb_d0, "8")
+    Cr_dct, Cr_dct_log = dct(Cr_d0, "8")
+
+    # Plotting
+    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
+    fig = plt.figure()
+
+    # Y DCT
+    fig.add_subplot(1, 3, 1)
+    plt.title("Y DCT")
+    plt.imshow(Y_dct_log, cmap=gray_colormap)
+    plt.colorbar(shrink=0.5)
+
+    # Cb DCT
+    fig.add_subplot(1, 3, 2)
+    plt.title("Cb DCT")
+    plt.imshow(Cb_dct_log, cmap=gray_colormap)
+    plt.colorbar(shrink=0.5)
+
+    # Cr DCT
+    fig.add_subplot(1, 3, 3)
+    plt.title("Cr DCT")
+    plt.imshow(Cr_dct_log, cmap=gray_colormap)
+    plt.colorbar(shrink=0.5)
+
+    plt.subplots_adjust(wspace=0.5)
 
     return Y_dct, Cb_dct, Cr_dct
 
 
 def decoder(Y_dct, Cb_dct, Cr_dct, n_lines, n_columns):
     # -- 7.1 --
-    Y_d0, Cb_d0, Cr_d0 = dct_inverse(Y_dct, Cb_dct, Cr_dct, "all")
+    Y_d0 = dct_inverse(Y_dct, "8")
+    Cb_d0 = dct_inverse(Cb_dct, "8")
+    Cr_d0 = dct_inverse(Cr_dct, "8")
 
     # -- 6 --
     # Downsampling 4:2:2
