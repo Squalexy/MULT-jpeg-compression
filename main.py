@@ -179,6 +179,7 @@ def show_ycbcr(Y, Cb, Cr):
 def downsampling(Y, Cb, Cr, Yref, fatorCr, fatorCb):
     #Cr_d = Cr[:, ::fatorCr]
 
+    # 4:2:0
     if fatorCb == 0:
         scaleX = 0.5
         scaleY = 0.5
@@ -189,6 +190,8 @@ def downsampling(Y, Cb, Cr, Yref, fatorCr, fatorCb):
                           interpolation=cv2.INTER_NEAREST)
         #Cb_d = Cb[::fatorCr, ::fatorCr]
         #Cr_d = Cr_d[::fatorCr]
+
+    # 4:2:2
     else:
         scaleX = 0.5
         scaleY = 1
@@ -233,70 +236,59 @@ def upsampling(Y_d, Cb_d, Cr_d, type):
 
 
 # Ex 7
-def dct(canal, blocks):
-    canal_dct_log = np.zeros(canal.shape)
-    canal_dct = np.zeros(canal.shape)
+def dct(channel, blocks, channel_0):
+    channel_dct_log = np.zeros(channel.shape)
+    channel_dct = np.zeros(channel.shape)
 
-    if blocks == "all":
-        canal_dct = fft.dct(fft.dct(canal, norm="ortho").T, norm="ortho").T
-        canal_dct_log = np.log(np.abs(canal_dct) + 0.0001)
+    for i in range(0, len(channel), blocks):
+        for j in range(0, len(channel[0]), channel_0):
+            channel_sliced = channel[i:i+blocks, j:j+channel_0]
+            channel_dct[i:i+blocks, j:j+channel_0] = fft.dct(
+                fft.dct(channel_sliced, norm="ortho").T, norm="ortho").T
+            channel_aux = fft.dct(
+                fft.dct(channel_sliced, norm="ortho").T, norm="ortho").T
+            channel_dct_log[i:i+blocks, j:j +
+                            channel_0] = np.log(np.abs(channel_aux) + 0.0001)
 
-    # 7.2 - fazer mais tarde
-    elif blocks == "8":
-        for i in range(0, len(canal), 8):
-            for j in range(0, len(canal[0]), 8):
-                canal_sliced = canal[i:i+8, j:j+8]
-                canal_dct[i:i+8, j:j+8] = fft.dct(
-                    fft.dct(canal_sliced, norm="ortho").T, norm="ortho").T
-
-                canal_aux = fft.dct(
-                    fft.dct(canal_sliced, norm="ortho").T, norm="ortho").T
-                canal_dct_log[i:i+8, j:j +
-                              8] = np.log(np.abs(canal_aux) + 0.0001)
-
-    # 7.3 - fazer mais tarde
-    elif blocks == "64":
-        for i in range(0, len(canal), 64):
-            for j in range(0, len(canal[0]), 64):
-                canal_sliced = canal[i:i+64, j:j+64]
-                canal_dct[i:i+64, j:j+64] = fft.dct(
-                    fft.dct(canal_sliced, norm="ortho").T, norm="ortho").T
-
-                canal_aux = fft.dct(
-                    fft.dct(canal_sliced, norm="ortho").T, norm="ortho").T
-                canal_dct_log[i:i+64, j:j +
-                              64] = np.log(np.abs(canal_aux) + 0.0001)
-
-    return canal_dct, canal_dct_log
+    return channel_dct, channel_dct_log
 
 
-def dct_inverse(canal_dct,  blocks):
-    canal_d = np.zeros(canal_dct.shape)
-    canal_ = np.zeros(canal_dct.shape)
+def dct_inverse(channel_dct,  blocks, channel_0):
+    channel_d = np.zeros(channel_dct.shape)
+    channel_ = np.zeros(channel_dct.shape)
 
-    if blocks == "all":
-        canal_d = fft.idct(fft.idct(canal_dct, norm="ortho").T, norm="ortho").T
+    for i in range(0, len(channel_dct), blocks):
+        for j in range(0, len(channel_dct[0]), channel_0):
+            print(j)
+            channel_da = channel_dct[i:i+blocks, j:j+channel_0]
+            channel_d[i:i+blocks, j:j+channel_0] = fft.idct(
+                fft.idct(channel_da, norm="ortho").T, norm="ortho").T
 
-    # 7.2
-    elif blocks == "8":
-        for i in range(0, len(canal_dct), 8):
-            for j in range(0, len(canal_dct[0]), 8):
-                canal_da = canal_dct[i:i+8, j:j+8]
-                canal_d[i:i+8, j:j+8] = fft.idct(
-                    fft.idct(canal_da, norm="ortho").T, norm="ortho").T
+    return channel_d
 
-    # 7.3
-    elif blocks == "64":
-        for i in range(0, len(canal_dct), 64):
-            for j in range(0, len(canal_dct[0]), 64):
-                canal_dct_sliced = canal_dct[i:i+64, j:j+64]
-                canal_d[i:i+64, j:j+64] = fft.idct(
-                    fft.idct(canal_dct_sliced, norm="ortho").T, norm="ortho").T
 
-    return canal_d
+def quantized_dct_coefficients(Y_dct):
+    Q_Y = np.array([[16,  11,  10,  16,  24,  40,  51,  61],
+                    [12,  12,  14,  19,  26,  58,  60,  55],
+                    [14,  13,  16,  24,  40,  57,  69,  56],
+                    [14,  17,  22,  29,  51,  87,  80,  62],
+                    [18,  22,  37,  56,  68, 109, 103,  77],
+                    [24,  35,  55,  64,  81, 104, 113,  92],
+                    [49,  64,  78,  87, 103, 121, 120, 101],
+                    [72,  92,  95,  98, 112, 100, 103,  99]])
 
+    Q_CbCr = np.array([[17, 18, 24, 47, 99, 99, 99, 99],
+                       [18, 21, 26, 66, 99, 99, 99, 99],
+                       [24, 26, 56, 99, 99, 99, 99, 99],
+                       [47, 66, 99, 99, 99, 99, 99, 99],
+                       [99, 99, 99, 99, 99, 99, 99, 99],
+                       [99, 99, 99, 99, 99, 99, 99, 99],
+                       [99, 99, 99, 99, 99, 99, 99, 99],
+                       [99, 99, 99, 99, 99, 99, 99, 99]])
 
 # -------------------------------------------------------------------------------------------- #
+
+
 def encoder(img, lines, columns):
     # -- 4 --
     img_padded = padding_function(img, lines, columns)
@@ -348,9 +340,9 @@ def encoder(img, lines, columns):
     plt.subplots_adjust(hspace=0.5)
 
     # -- 7.1 --
-    Y_dct, Y_dct_log = dct(Y_d0, "8")
-    Cb_dct, Cb_dct_log = dct(Cb_d0, "8")
-    Cr_dct, Cr_dct_log = dct(Cr_d0, "8")
+    Y_dct, Y_dct_log = dct(Y_d0, len(Y_d0), len(Y_d0[0]))
+    Cb_dct, Cb_dct_log = dct(Cb_d0, len(Cb_d0), len(Cb_d0[0]))
+    Cr_dct, Cr_dct_log = dct(Cr_d0, len(Cr_d0), len(Cr_d0[0]))
 
     # Plotting
     gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
@@ -376,14 +368,17 @@ def encoder(img, lines, columns):
 
     plt.subplots_adjust(wspace=0.5)
 
+    # 8.1
+    quantized_dct_coefficients(Y_dct)
+
     return Y_dct, Cb_dct, Cr_dct
 
 
 def decoder(Y_dct, Cb_dct, Cr_dct, n_lines, n_columns):
     # -- 7.1 --
-    Y_d0 = dct_inverse(Y_dct, "8")
-    Cb_d0 = dct_inverse(Cb_dct, "8")
-    Cr_d0 = dct_inverse(Cr_dct, "8")
+    Y_d0 = dct_inverse(Y_dct, len(Y_dct), len(Y_dct[0]))
+    Cb_d0 = dct_inverse(Cb_dct, len(Cb_dct), len(Cb_dct[0]))
+    Cr_d0 = dct_inverse(Cr_dct, len(Cr_dct), len(Cr_dct[0]))
 
     # -- 6 --
     # Downsampling 4:2:2
