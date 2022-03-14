@@ -255,7 +255,6 @@ def dct(channel, blocks, channel_0):
 
 def dct_inverse(channel_dct,  blocks, channel_0):
     channel_d = np.zeros(channel_dct.shape)
-    channel_ = np.zeros(channel_dct.shape)
 
     for i in range(0, len(channel_dct), blocks):
         for j in range(0, len(channel_dct[0]), channel_0):
@@ -266,8 +265,6 @@ def dct_inverse(channel_dct,  blocks, channel_0):
     return channel_d
 
 # Ex 8
-
-
 def get_Q_matrixes(Y_dct, Cb_dct, blocks):
     Q_Y = np.array([[16,  11,  10,  16,  24,  40,  51,  61],
                     [12,  12,  14,  19,  26,  58,  60,  55],
@@ -318,14 +315,38 @@ def quality_factor(Q, qf):
 
 
 def inverse_quantized_dct_coefficients_8x8(quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct, Qs_Y, Qs_CbCr):
-
     Y_dct = quantized_Y_dct * Qs_Y
     Cb_dct = quantized_Cb_dct * Qs_CbCr
     Cr_dct = quantized_Cr_dct * Qs_CbCr
 
     return Y_dct, Cb_dct, Cr_dct
 
+#Ex 9
+def coefficients_dc(dc, blocks):
+    diff = dc
 
+    for i in range(0, len(dc), blocks):
+        for j in range(0, len(dc[0]), blocks):
+            if j == 0:
+                if i != 0:
+                    diff[i][j] = dc[i][j] - dc[i-blocks][len(dc[0])-blocks-1]
+            else: 
+                diff[i][j] = dc[i][j] - dc[i][j-blocks-1]
+            
+    return diff 
+
+
+def inverse_coefficients_dc(diff, blocks):
+    dc = diff
+    for i in range(0, len(diff), blocks):
+        for j in range (0, len(diff[0]), blocks):
+            if j == 0:
+                if i != 0:
+                    dc[i][j] = diff[i-blocks][len(diff[0])-blocks-1] + diff[i][j]
+            else:    
+                dc[i][j] = diff[i][j-blocks-1] + diff[i][j]
+        
+    return dc
 # -------------------------------------------------------------------------------------------- #
 
 
@@ -385,9 +406,9 @@ def encoder(img, lines, columns):
     Cb_dct, Cb_dct_log = dct(Cb_d0, len(Cb_d0), len(Cb_d0[0]))
     Cr_dct, Cr_dct_log = dct(Cr_d0, len(Cr_d0), len(Cr_d0[0]))
     '''
-    Y_dct, Y_dct_log = dct(Y_d0, len(Y_d0), 8)
-    Cb_dct, Cb_dct_log = dct(Cb_d0, len(Cb_d0), 8)
-    Cr_dct, Cr_dct_log = dct(Cr_d0, len(Cr_d0), 8)
+    Y_dct, Y_dct_log = dct(Y_d0, 8, 8)
+    Cb_dct, Cb_dct_log = dct(Cb_d0, 8, 8)
+    Cr_dct, Cr_dct_log = dct(Cr_d0, 8, 8)
 
     # Plotting
     gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
@@ -413,11 +434,13 @@ def encoder(img, lines, columns):
 
     plt.subplots_adjust(wspace=0.5)
 
+    qf = np.array([10, 25, 50, 75, 100])
+
+    
     # 8.1
 
     Q_Y_with_tile, Q_CbCr_with_tile = get_Q_matrixes(Y_dct, Cb_dct, 8)
 
-    qf = np.array([10, 25, 50, 75, 100])
 
     Qs_Y = quality_factor(Q_Y_with_tile, qf[4])
     Qs_CbCr = quality_factor(Q_CbCr_with_tile, qf[4])
@@ -425,11 +448,47 @@ def encoder(img, lines, columns):
     quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct = quantized_dct_coefficients_8x8(
         Y_dct, Cb_dct, Cr_dct, Qs_Y, Qs_CbCr)
 
-    return quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct, qf[4]
+    
+    diff_Y = coefficients_dc(quantized_Y_dct, 8)
+    diff_Cb = coefficients_dc(quantized_Cb_dct, 8)
+    diff_Cr = coefficients_dc(quantized_Cr_dct, 8)
+
+    # Plotting
+    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
+    fig = plt.figure()
+
+    # Y DCT
+    fig.add_subplot(1, 3, 1)
+    plt.title("Diff Y")
+    plt.imshow(diff_Y, cmap=gray_colormap)
+    plt.colorbar(shrink=0.5)
+
+    # Cb DCT
+    fig.add_subplot(1, 3, 2)
+    plt.title("Diff Cb")
+    plt.imshow(diff_Cb, cmap=gray_colormap)
+    plt.colorbar(shrink=0.5)
+
+    # Cr DCT
+    fig.add_subplot(1, 3, 3)
+    plt.title("Diff Cr")
+    plt.imshow(diff_Cr, cmap=gray_colormap)
+    plt.colorbar(shrink=0.5)
+
+    plt.subplots_adjust(wspace=0.5)
+    
+
+    return diff_Y, diff_Cb, diff_Cr, qf[4]
 
 
-def decoder(quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct, qf, n_lines, n_columns):
-    # -- 8.1 --
+def decoder(diff_Y, diff_Cb, diff_Cr, qf, n_lines, n_columns):
+    
+    # -- 9.1 and 9.2 --
+    quantized_Y_dct = inverse_coefficients_dc(diff_Y, 8)
+    quantized_Cb_dct = inverse_coefficients_dc(diff_Cb, 8)
+    quantized_Cr_dct = inverse_coefficients_dc(diff_Cr, 8)
+    
+    # -- 8.1 and 8.2 --
     Q_Y_with_tile, Q_CbCr_with_tile = get_Q_matrixes(
         quantized_Y_dct, quantized_Cb_dct, 8)
 
@@ -440,9 +499,12 @@ def decoder(quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct, qf, n_lines, n_
         quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct, Qs_Y, Qs_CbCr)
 
     # -- 7.1 --
-    Y_d0 = dct_inverse(Y_dct, len(Y_dct), 8)
-    Cb_d0 = dct_inverse(Cb_dct, len(Cb_dct), 8)
-    Cr_d0 = dct_inverse(Cr_dct, len(Cr_dct), 8)
+    Y_d0 = dct_inverse(Y_dct, 8, 8)
+    Cb_d0 = dct_inverse(Cb_dct, 8, 8)
+    Cr_d0 = dct_inverse(Cr_dct, 8, 8)
+
+
+
     '''
     Y_d0 = dct_inverse(Y_dct, len(Y_dct), len(Y_dct[0]))
     Cb_d0 = dct_inverse(Cb_dct, len(Cb_dct), len(Cb_dct[0]))
