@@ -177,7 +177,7 @@ def show_ycbcr(Y, Cb, Cr):
 
 # Ex 6.1
 def downsampling(Y, Cb, Cr, Yref, fatorCr, fatorCb):
-    #Cr_d = Cr[:, ::fatorCr]
+    # Cr_d = Cr[:, ::fatorCr]
 
     # 4:2:0
     if fatorCb == 0:
@@ -188,8 +188,8 @@ def downsampling(Y, Cb, Cr, Yref, fatorCr, fatorCb):
                           interpolation=cv2.INTER_NEAREST)
         Cr_d = cv2.resize(Cr, None, fx=scaleX, fy=scaleY,
                           interpolation=cv2.INTER_NEAREST)
-        #Cb_d = Cb[::fatorCr, ::fatorCr]
-        #Cr_d = Cr_d[::fatorCr]
+        # Cb_d = Cb[::fatorCr, ::fatorCr]
+        # Cr_d = Cr_d[::fatorCr]
 
     # 4:2:2
     else:
@@ -199,7 +199,7 @@ def downsampling(Y, Cb, Cr, Yref, fatorCr, fatorCb):
                           interpolation=cv2.INTER_NEAREST)
         Cr_d = cv2.resize(Cr, None, fx=scaleX, fy=scaleY,
                           interpolation=cv2.INTER_NEAREST)
-        #Cb_d = Cb[:, ::fatorCb]
+        # Cb_d = Cb[:, ::fatorCb]
 
     return Y, Cb_d, Cr_d
 
@@ -217,8 +217,8 @@ def upsampling(Y_d, Cb_d, Cr_d, type):
         Cr_u = cv2.resize(Cr_d, None, fx=stepX, fy=stepY,
                           interpolation=cv2.INTER_LINEAR)
 
-        #Cb_u = Cb_d.repeat(2, axis=0).repeat(2, axis=1)
-        #Cr_u = Cr_d.repeat(2, axis=0).repeat(2, axis=1)
+        # Cb_u = Cb_d.repeat(2, axis=0).repeat(2, axis=1)
+        # Cr_u = Cr_d.repeat(2, axis=0).repeat(2, axis=1)
 
     else:
         scaleX = 0.5
@@ -229,8 +229,8 @@ def upsampling(Y_d, Cb_d, Cr_d, type):
                           interpolation=cv2.INTER_LINEAR)
         Cr_u = cv2.resize(Cr_d, None, fx=stepX, fy=stepY,
                           interpolation=cv2.INTER_LINEAR)
-        #Cb_u = Cb_d.repeat(2, axis=1)
-        #Cr_u = Cr_d.repeat(2, axis=1)
+        # Cb_u = Cb_d.repeat(2, axis=1)
+        # Cr_u = Cr_d.repeat(2, axis=1)
 
     return Y_d, Cb_u, Cr_u
 
@@ -259,15 +259,16 @@ def dct_inverse(channel_dct,  blocks, channel_0):
 
     for i in range(0, len(channel_dct), blocks):
         for j in range(0, len(channel_dct[0]), channel_0):
-            print(j)
             channel_da = channel_dct[i:i+blocks, j:j+channel_0]
             channel_d[i:i+blocks, j:j+channel_0] = fft.idct(
                 fft.idct(channel_da, norm="ortho").T, norm="ortho").T
 
     return channel_d
 
+# Ex 8
 
-def quantized_dct_coefficients(Y_dct):
+
+def get_Q_matrixes(Y_dct, Cb_dct, blocks):
     Q_Y = np.array([[16,  11,  10,  16,  24,  40,  51,  61],
                     [12,  12,  14,  19,  26,  58,  60,  55],
                     [14,  13,  16,  24,  40,  57,  69,  56],
@@ -276,6 +277,8 @@ def quantized_dct_coefficients(Y_dct):
                     [24,  35,  55,  64,  81, 104, 113,  92],
                     [49,  64,  78,  87, 103, 121, 120, 101],
                     [72,  92,  95,  98, 112, 100, 103,  99]])
+    Q_Y_with_tile = np.tile(
+        Q_Y, (int(len(Y_dct)/blocks), int(len(Y_dct[0])/blocks)))
 
     Q_CbCr = np.array([[17, 18, 24, 47, 99, 99, 99, 99],
                        [18, 21, 26, 66, 99, 99, 99, 99],
@@ -285,6 +288,43 @@ def quantized_dct_coefficients(Y_dct):
                        [99, 99, 99, 99, 99, 99, 99, 99],
                        [99, 99, 99, 99, 99, 99, 99, 99],
                        [99, 99, 99, 99, 99, 99, 99, 99]])
+    Q_CbCr_with_tile = np.tile(
+        Q_CbCr, (int(len(Cb_dct)/blocks), int(len(Cb_dct[0])/blocks)))
+
+    return Q_Y_with_tile, Q_CbCr_with_tile
+
+
+def quantized_dct_coefficients_8x8(Y_dct, Cb_dct, Cr_dct, Q_Y_with_tile, Q_CbCr_with_tile):
+    Y_q = np.round(Y_dct / Q_Y_with_tile)
+    Cb_q = np.round(Cb_dct / Q_CbCr_with_tile)
+    Cr_q = np.round(Cr_dct / Q_CbCr_with_tile)
+    return Y_q, Cb_q, Cr_q
+
+
+def quality_factor(Q, qf):
+    if(qf >= 50):
+        sf = (100 - qf) / 50
+    else:
+        sf = 50/qf
+
+    if(sf != 0):
+        Qs = np.round(Q * sf)
+    else:
+        Qs = np.ones(Q.shape, dtype=np.uint8)
+
+    Qs[Qs > 255] = 255
+
+    return Qs
+
+
+def inverse_quantized_dct_coefficients_8x8(quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct, Qs_Y, Qs_CbCr):
+
+    Y_dct = quantized_Y_dct * Qs_Y
+    Cb_dct = quantized_Cb_dct * Qs_CbCr
+    Cr_dct = quantized_Cr_dct * Qs_CbCr
+
+    return Y_dct, Cb_dct, Cr_dct
+
 
 # -------------------------------------------------------------------------------------------- #
 
@@ -340,9 +380,14 @@ def encoder(img, lines, columns):
     plt.subplots_adjust(hspace=0.5)
 
     # -- 7.1 --
+    '''
     Y_dct, Y_dct_log = dct(Y_d0, len(Y_d0), len(Y_d0[0]))
     Cb_dct, Cb_dct_log = dct(Cb_d0, len(Cb_d0), len(Cb_d0[0]))
     Cr_dct, Cr_dct_log = dct(Cr_d0, len(Cr_d0), len(Cr_d0[0]))
+    '''
+    Y_dct, Y_dct_log = dct(Y_d0, len(Y_d0), 8)
+    Cb_dct, Cb_dct_log = dct(Cb_d0, len(Cb_d0), 8)
+    Cr_dct, Cr_dct_log = dct(Cr_d0, len(Cr_d0), 8)
 
     # Plotting
     gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
@@ -369,16 +414,40 @@ def encoder(img, lines, columns):
     plt.subplots_adjust(wspace=0.5)
 
     # 8.1
-    quantized_dct_coefficients(Y_dct)
 
-    return Y_dct, Cb_dct, Cr_dct
+    Q_Y_with_tile, Q_CbCr_with_tile = get_Q_matrixes(Y_dct, Cb_dct, 8)
+
+    qf = np.array([10, 25, 50, 75, 100])
+
+    Qs_Y = quality_factor(Q_Y_with_tile, qf[4])
+    Qs_CbCr = quality_factor(Q_CbCr_with_tile, qf[4])
+
+    quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct = quantized_dct_coefficients_8x8(
+        Y_dct, Cb_dct, Cr_dct, Qs_Y, Qs_CbCr)
+
+    return quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct, qf[4]
 
 
-def decoder(Y_dct, Cb_dct, Cr_dct, n_lines, n_columns):
+def decoder(quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct, qf, n_lines, n_columns):
+    # -- 8.1 --
+    Q_Y_with_tile, Q_CbCr_with_tile = get_Q_matrixes(
+        quantized_Y_dct, quantized_Cb_dct, 8)
+
+    Qs_Y = quality_factor(Q_Y_with_tile, qf)
+    Qs_CbCr = quality_factor(Q_CbCr_with_tile, qf)
+
+    Y_dct, Cb_dct, Cr_dct = inverse_quantized_dct_coefficients_8x8(
+        quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct, Qs_Y, Qs_CbCr)
+
     # -- 7.1 --
+    Y_d0 = dct_inverse(Y_dct, len(Y_dct), 8)
+    Cb_d0 = dct_inverse(Cb_dct, len(Cb_dct), 8)
+    Cr_d0 = dct_inverse(Cr_dct, len(Cr_dct), 8)
+    '''
     Y_d0 = dct_inverse(Y_dct, len(Y_dct), len(Y_dct[0]))
     Cb_d0 = dct_inverse(Cb_dct, len(Cb_dct), len(Cb_dct[0]))
     Cr_d0 = dct_inverse(Cr_dct, len(Cr_dct), len(Cr_dct[0]))
+    '''
 
     # -- 6 --
     # Downsampling 4:2:2
@@ -421,14 +490,14 @@ def main():
     img_path = dir_path + "/imagens/" + img_name + ".bmp"
     img = read_image(img_path)
 
-    #draw_plot("Original Image", img)
+    # draw_plot("Original Image", img)
 
     print(f"Initial shape: {img.shape}")
     (lines, columns, channels) = img.shape
 
     # retornar sempre o mais recente !!!
-    Y_dct, Cb_dct, Cr_dct = encoder(img, lines, columns)
-    decoder(Y_dct, Cb_dct, Cr_dct, lines, columns)
+    Y_dct, Cb_dct, Cr_dct, qf = encoder(img, lines, columns)
+    decoder(Y_dct, Cb_dct, Cr_dct, qf, lines, columns)
 
 
 if __name__ == "__main__":
