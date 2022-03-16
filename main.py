@@ -6,6 +6,9 @@ import os
 import menu
 import scipy.fftpack as fft
 import cv2
+import math
+from scipy import stats
+from sklearn.metrics import mean_squared_error
 
 # Ex 3.1
 
@@ -265,6 +268,8 @@ def dct_inverse(channel_dct,  blocks, channel_0):
     return channel_d
 
 # Ex 8
+
+
 def get_Q_matrixes(Y_dct, Cb_dct, blocks):
     Q_Y = np.array([[16,  11,  10,  16,  24,  40,  51,  61],
                     [12,  12,  14,  19,  26,  58,  60,  55],
@@ -321,7 +326,9 @@ def inverse_quantized_dct_coefficients_8x8(quantized_Y_dct, quantized_Cb_dct, qu
 
     return Y_dct, Cb_dct, Cr_dct
 
-#Ex 9
+# Ex 9
+
+
 def coefficients_dc(dc, blocks):
     diff = dc
 
@@ -330,24 +337,65 @@ def coefficients_dc(dc, blocks):
             if j == 0:
                 if i != 0:
                     diff[i][j] = dc[i][j] - dc[i-blocks][len(dc[0])-blocks-1]
-            else: 
+            else:
                 diff[i][j] = dc[i][j] - dc[i][j-blocks-1]
-            
-    return diff 
+
+    return diff
 
 
 def inverse_coefficients_dc(diff, blocks):
     dc = diff
     for i in range(0, len(diff), blocks):
-        for j in range (0, len(diff[0]), blocks):
+        for j in range(0, len(diff[0]), blocks):
             if j == 0:
                 if i != 0:
-                    dc[i][j] = diff[i-blocks][len(diff[0])-blocks-1] + diff[i][j]
-            else:    
+                    dc[i][j] = diff[i -
+                                    blocks][len(diff[0])-blocks-1] + diff[i][j]
+            else:
                 dc[i][j] = diff[i][j-blocks-1] + diff[i][j]
-        
+
     return dc
 # -------------------------------------------------------------------------------------------- #
+
+# Ex 10
+
+
+def MSE(original_image, recovered_image):
+    mse = np.sum((original_image - recovered_image) ** 2)
+    mse /= float(original_image.shape[0] * original_image.shape[1])
+    return mse
+
+
+def RMSE(mse):
+    rmse = math.sqrt(mse)
+    return rmse
+
+
+def SNR(original_image, mse):
+    P = np.sum(original_image ** 2)
+    P /= float(original_image.shape[0] * original_image.shape[1])
+    snr = 10 * math.log10(P/mse)
+    return snr
+
+
+def PSNR(mse, original_image):
+    original_image = original_image.flatten()
+    max_ = max(original_image) ** 2
+    psnr = 10 * math.log10(max_/mse)
+    return psnr
+
+
+def statistics(original_img, compressed_img, qf, img_name):
+    print(
+        f"\n\n=========== {qf} Quality factor for {img_name} ===========")
+    mse = MSE(original_img, compressed_img)
+    print(f"MSE: {mse}")
+    rmse = RMSE(mse)
+    print(f"RMSE: {rmse}")
+    snr = SNR(original_img, mse)
+    print(f"SNR: {snr}")
+    psnr = PSNR(mse, original_img)
+    print(f"PSNR: {psnr}\n")
 
 
 def encoder(img, lines, columns):
@@ -436,19 +484,16 @@ def encoder(img, lines, columns):
 
     qf = np.array([10, 25, 50, 75, 100])
 
-    
     # 8.1
 
     Q_Y_with_tile, Q_CbCr_with_tile = get_Q_matrixes(Y_dct, Cb_dct, 8)
 
-
-    Qs_Y = quality_factor(Q_Y_with_tile, qf[4])
-    Qs_CbCr = quality_factor(Q_CbCr_with_tile, qf[4])
+    Qs_Y = quality_factor(Q_Y_with_tile, qf[2])
+    Qs_CbCr = quality_factor(Q_CbCr_with_tile, qf[2])
 
     quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct = quantized_dct_coefficients_8x8(
         Y_dct, Cb_dct, Cr_dct, Qs_Y, Qs_CbCr)
 
-    
     diff_Y = coefficients_dc(quantized_Y_dct, 8)
     diff_Cb = coefficients_dc(quantized_Cb_dct, 8)
     diff_Cr = coefficients_dc(quantized_Cr_dct, 8)
@@ -476,18 +521,17 @@ def encoder(img, lines, columns):
     plt.colorbar(shrink=0.5)
 
     plt.subplots_adjust(wspace=0.5)
-    
 
-    return diff_Y, diff_Cb, diff_Cr, qf[4]
+    return diff_Y, diff_Cb, diff_Cr, qf[2]
 
 
 def decoder(diff_Y, diff_Cb, diff_Cr, qf, n_lines, n_columns):
-    
+
     # -- 9.1 and 9.2 --
     quantized_Y_dct = inverse_coefficients_dc(diff_Y, 8)
     quantized_Cb_dct = inverse_coefficients_dc(diff_Cb, 8)
     quantized_Cr_dct = inverse_coefficients_dc(diff_Cr, 8)
-    
+
     # -- 8.1 and 8.2 --
     Q_Y_with_tile, Q_CbCr_with_tile = get_Q_matrixes(
         quantized_Y_dct, quantized_Cb_dct, 8)
@@ -502,8 +546,6 @@ def decoder(diff_Y, diff_Cb, diff_Cr, qf, n_lines, n_columns):
     Y_d0 = dct_inverse(Y_dct, 8, 8)
     Cb_d0 = dct_inverse(Cb_dct, 8, 8)
     Cr_d0 = dct_inverse(Cr_dct, 8, 8)
-
-
 
     '''
     Y_d0 = dct_inverse(Y_dct, len(Y_dct), len(Y_dct[0]))
@@ -539,7 +581,9 @@ def decoder(diff_Y, diff_Cb, diff_Cr, qf, n_lines, n_columns):
     plt.title("Final Image")
     plt.imshow(img_without_padding)
 
-    print(f"Final shape: {img_without_padding.shape}")
+    #print(f"Final shape: {img_without_padding.shape}")
+
+    return img_without_padding
 # -------------------------------------------------------------------------------------------- #
 
 
@@ -554,12 +598,15 @@ def main():
 
     # draw_plot("Original Image", img)
 
-    print(f"Initial shape: {img.shape}")
+    #print(f"Initial shape: {img.shape}")
     (lines, columns, channels) = img.shape
 
     # retornar sempre o mais recente !!!
     Y_dct, Cb_dct, Cr_dct, qf = encoder(img, lines, columns)
-    decoder(Y_dct, Cb_dct, Cr_dct, qf, lines, columns)
+    final_img = decoder(Y_dct, Cb_dct, Cr_dct, qf, lines, columns)
+
+    # Print statistics
+    statistics(img, final_img, qf, img_name)
 
 
 if __name__ == "__main__":
