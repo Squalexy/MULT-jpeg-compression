@@ -44,7 +44,6 @@ def rgb_components(img):
 # if T is a matrix -> Ti = np.linalg.inv(T) to get inversed matrix
 def join_RGB(R, G, B):
     matrix_inverted = np.zeros((len(R), len(R[0]), 3), dtype=np.uint8)
-
     matrix_inverted[:, :, 0] = R
     matrix_inverted[:, :, 1] = G
     matrix_inverted[:, :, 2] = B
@@ -330,7 +329,7 @@ def inverse_quantized_dct_coefficients_8x8(quantized_Y_dct, quantized_Cb_dct, qu
 
 
 def coefficients_dc(dc, blocks):
-    diff = dc
+    diff = dc.copy()
 
     for i in range(0, len(dc), blocks):
         for j in range(0, len(dc[0]), blocks):
@@ -338,30 +337,29 @@ def coefficients_dc(dc, blocks):
                 if i != 0:
                     diff[i][j] = dc[i][j] - dc[i-blocks][len(dc[0])-blocks-1]
             else:
-                diff[i][j] = dc[i][j] - dc[i][j-blocks-1]
+                diff[i][j] = dc[i][j] - dc[i][j-blocks]
 
     return diff
 
 
 def inverse_coefficients_dc(diff, blocks):
-    dc = diff
+    dc = diff.copy()
     for i in range(0, len(diff), blocks):
         for j in range(0, len(diff[0]), blocks):
             if j == 0:
                 if i != 0:
-                    dc[i][j] = diff[i -
-                                    blocks][len(diff[0])-blocks-1] + diff[i][j]
+                    dc[i][j] = dc[i -
+                                  blocks][len(diff[0])-blocks-1] + diff[i][j]
             else:
-                dc[i][j] = diff[i][j-blocks-1] + diff[i][j]
+                dc[i][j] = dc[i][j-blocks] + diff[i][j]
 
     return dc
+
+
 # -------------------------------------------------------------------------------------------- #
-
 # Ex 10
-
-
 def MSE(original_image, recovered_image):
-    mse = np.sum((original_image - recovered_image) ** 2)
+    mse = np.sum(abs(original_image - recovered_image) ** 2)
     mse /= float(original_image.shape[0] * original_image.shape[1])
     return mse
 
@@ -379,23 +377,108 @@ def SNR(original_image, mse):
 
 
 def PSNR(mse, original_image):
-    original_image = original_image.flatten()
-    max_ = max(original_image) ** 2
+    max_ = max(original_image.flatten()) ** 2
     psnr = 10 * math.log10(max_/mse)
     return psnr
+
+
+def error_plot(original_image, compressed_img, final_image):
+
+    y_error = abs(original_image - compressed_img)
+
+    # Plotting
+    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
+
+    # Y DCT
+    fig = plt.figure()
+    fig.add_subplot(1, 2, 1)
+    plt.title("Final Image")
+    plt.imshow(final_image, cmap=gray_colormap)
+
+    fig.add_subplot(1, 2, 2)
+    plt.title("Y error")
+    plt.imshow(y_error, cmap=gray_colormap)
 
 
 def statistics(original_img, compressed_img, qf, img_name):
     print(
         f"\n\n=========== {qf} Quality factor for {img_name} ===========")
     mse = MSE(original_img, compressed_img)
-    print(f"MSE: {mse}")
+    print("MSE: ", end="")
+    print(format(mse, ".3f"))
     rmse = RMSE(mse)
-    print(f"RMSE: {rmse}")
+    print("RMSE: ", end="")
+    print(format(rmse, ".3f"))
     snr = SNR(original_img, mse)
-    print(f"SNR: {snr}")
+    print("SNR: ", end="")
+    print(format(snr, ".3f"))
     psnr = PSNR(mse, original_img)
-    print(f"PSNR: {psnr}\n")
+    print("PSNR: ", end="")
+    print(format(psnr, ".3f"))
+
+
+def plot_1x3(x, y, z, title1, title2, title3):
+    # Plotting
+    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
+    fig = plt.figure()
+
+    # Y DCT
+    fig.add_subplot(1, 3, 1)
+    plt.title(title1)
+    plt.imshow(x, cmap=gray_colormap)
+    plt.colorbar(shrink=0.5)
+
+    # Cb DCT
+    fig.add_subplot(1, 3, 2)
+    plt.title(title2)
+    plt.imshow(y, cmap=gray_colormap)
+    plt.colorbar(shrink=0.5)
+
+    # Cr DCT
+    fig.add_subplot(1, 3, 3)
+    plt.title(title3)
+    plt.imshow(z, cmap=gray_colormap)
+    plt.colorbar(shrink=0.5)
+
+    plt.subplots_adjust(wspace=0.5)
+
+
+def plot_3x2(x, y, z, t, p,  l, title1, title2, title3, title4, title5, title6):
+    # Plotting
+    fig = plt.figure()
+    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
+
+    # Cb original
+    fig.add_subplot(3, 2, 1)
+    plt.title(title1)
+    plt.imshow(x, cmap=gray_colormap)
+
+    # Cr original
+    fig.add_subplot(3, 2, 2)
+    plt.title(title2)
+    plt.imshow(y, cmap=gray_colormap)
+
+    # Cb downsampled 4:2:2
+    fig.add_subplot(3, 2, 3)
+    plt.title(title3)
+    plt.imshow(z, cmap=gray_colormap)
+
+    # Cr downsampled 4:2:2
+    fig.add_subplot(3, 2, 4)
+    plt.title(title4)
+    plt.imshow(t, cmap=gray_colormap)
+
+    # Cb downsampled 4:2:0
+    fig.add_subplot(3, 2, 5)
+    plt.title(title5)
+    plt.imshow(p, cmap=gray_colormap)
+
+    # Cr downsampled 4:2:0
+    fig.add_subplot(3, 2, 6)
+    plt.title(title6)
+    plt.imshow(l, cmap=gray_colormap)
+
+    plt.subplots_adjust(hspace=0.5)
 
 
 def encoder(img, lines, columns):
@@ -412,41 +495,9 @@ def encoder(img, lines, columns):
     Y_d, Cb_d, Cr_d = downsampling(Y, Cb, Cr, 4, 2, 2)
     Y_d0, Cb_d0, Cr_d0 = downsampling(Y, Cb, Cr, 4, 2, 0)
 
-    # Plotting
-    fig = plt.figure()
-    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
-
-    # Cb original
-    fig.add_subplot(3, 2, 1)
-    plt.title("Cb - Original")
-    plt.imshow(Cb, cmap=gray_colormap)
-
-    # Cr original
-    fig.add_subplot(3, 2, 2)
-    plt.title("Cr - Original")
-    plt.imshow(Cr, cmap=gray_colormap)
-
-    # Cb downsampled 4:2:2
-    fig.add_subplot(3, 2, 3)
-    plt.title("Cb - Downsampling 4:2:2")
-    plt.imshow(Cb_d, cmap=gray_colormap)
-
-    # Cr downsampled 4:2:2
-    fig.add_subplot(3, 2, 4)
-    plt.title("Cr - Downsampling 4:2:2")
-    plt.imshow(Cr_d, cmap=gray_colormap)
-
-    # Cb downsampled 4:2:0
-    fig.add_subplot(3, 2, 5)
-    plt.title("Cb - Downsampling 4:2:0")
-    plt.imshow(Cb_d0, cmap=gray_colormap)
-
-    # Cr downsampled 4:2:0
-    fig.add_subplot(3, 2, 6)
-    plt.title("Cr - Downsampling 4:2:0")
-    plt.imshow(Cr_d0, cmap=gray_colormap)
-
-    plt.subplots_adjust(hspace=0.5)
+    # Downsample plot
+    plot_3x2(Cb, Cr, Cb_d, Cr_d, Cb_d0,  Cr_d0,  "Cb - Original", "Cr - Original", "Cb - Downsampling 4:2:2",
+             "Cr - Downsampling 4:2:2", "Cb - Downsampling 4:2:0", "Cr - Downsampling 4:2:0")
 
     # -- 7.1 --
     '''
@@ -458,71 +509,35 @@ def encoder(img, lines, columns):
     Cb_dct, Cb_dct_log = dct(Cb_d0, 8, 8)
     Cr_dct, Cr_dct_log = dct(Cr_d0, 8, 8)
 
-    # Plotting
-    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
-    fig = plt.figure()
+    # Ploting
+    plot_1x3(Y_dct_log, Cb_dct_log, Cr_dct_log, "Y DCT", "Cb DCT", "Cr DCT")
 
-    # Y DCT
-    fig.add_subplot(1, 3, 1)
-    plt.title("Y DCT")
-    plt.imshow(Y_dct_log, cmap=gray_colormap)
-    plt.colorbar(shrink=0.5)
-
-    # Cb DCT
-    fig.add_subplot(1, 3, 2)
-    plt.title("Cb DCT")
-    plt.imshow(Cb_dct_log, cmap=gray_colormap)
-    plt.colorbar(shrink=0.5)
-
-    # Cr DCT
-    fig.add_subplot(1, 3, 3)
-    plt.title("Cr DCT")
-    plt.imshow(Cr_dct_log, cmap=gray_colormap)
-    plt.colorbar(shrink=0.5)
-
-    plt.subplots_adjust(wspace=0.5)
-
-    qf = np.array([10, 25, 50, 75, 100])
+    qf = np.array([10, 25, 50, 75, 100, 1])
 
     # 8.1
 
     Q_Y_with_tile, Q_CbCr_with_tile = get_Q_matrixes(Y_dct, Cb_dct, 8)
 
-    Qs_Y = quality_factor(Q_Y_with_tile, qf[2])
-    Qs_CbCr = quality_factor(Q_CbCr_with_tile, qf[2])
+    Qs_Y = quality_factor(Q_Y_with_tile, qf[4])
+    Qs_CbCr = quality_factor(Q_CbCr_with_tile, qf[4])
 
     quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct = quantized_dct_coefficients_8x8(
         Y_dct, Cb_dct, Cr_dct, Qs_Y, Qs_CbCr)
+
+    # Quantized coefficients plot
+    plot_1x3(np.log(np.abs(quantized_Y_dct) + 0.0001), np.log(np.abs(quantized_Cb_dct) + 0.0001),
+             np.log(np.abs(quantized_Cr_dct) + 0.0001), "Quantized Y", "Quantized Cb", "Quantized Cr")
 
     diff_Y = coefficients_dc(quantized_Y_dct, 8)
     diff_Cb = coefficients_dc(quantized_Cb_dct, 8)
     diff_Cr = coefficients_dc(quantized_Cr_dct, 8)
 
-    # Plotting
-    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
-    fig = plt.figure()
+    # DPCM plot
 
-    # Y DCT
-    fig.add_subplot(1, 3, 1)
-    plt.title("Diff Y")
-    plt.imshow(diff_Y, cmap=gray_colormap)
-    plt.colorbar(shrink=0.5)
+    plot_1x3(np.log(np.abs(diff_Y) + 0.0001), np.log(np.abs(diff_Cb) + 0.0001),
+             np.log(np.abs(diff_Cr) + 0.0001), "Y DPCM", "Cb DPCM", "Cr DPCM")
 
-    # Cb DCT
-    fig.add_subplot(1, 3, 2)
-    plt.title("Diff Cb")
-    plt.imshow(diff_Cb, cmap=gray_colormap)
-    plt.colorbar(shrink=0.5)
-
-    # Cr DCT
-    fig.add_subplot(1, 3, 3)
-    plt.title("Diff Cr")
-    plt.imshow(diff_Cr, cmap=gray_colormap)
-    plt.colorbar(shrink=0.5)
-
-    plt.subplots_adjust(wspace=0.5)
-
-    return diff_Y, diff_Cb, diff_Cr, qf[2]
+    return diff_Y, diff_Cb, diff_Cr, qf[4], Y
 
 
 def decoder(diff_Y, diff_Cb, diff_Cr, qf, n_lines, n_columns):
@@ -547,12 +562,6 @@ def decoder(diff_Y, diff_Cb, diff_Cr, qf, n_lines, n_columns):
     Cb_d0 = dct_inverse(Cb_dct, 8, 8)
     Cr_d0 = dct_inverse(Cr_dct, 8, 8)
 
-    '''
-    Y_d0 = dct_inverse(Y_dct, len(Y_dct), len(Y_dct[0]))
-    Cb_d0 = dct_inverse(Cb_dct, len(Cb_dct), len(Cb_dct[0]))
-    Cr_d0 = dct_inverse(Cr_dct, len(Cr_dct), len(Cr_dct[0]))
-    '''
-
     # -- 6 --
     # Downsampling 4:2:2
     # Y, Cb, Cr = upsampling(Y_d, Cr_d, Cb_d, 1)
@@ -569,7 +578,7 @@ def decoder(diff_Y, diff_Cb, diff_Cr, qf, n_lines, n_columns):
 
     # -- 3 --
     fig = plt.figure()
-    fig.add_subplot(1, 2, 1)
+    fig.add_subplot(1, 1, 1)
     plt.title("RGB channels joined with padding")
     plt.imshow(matrix_joined_rgb)
 
@@ -577,13 +586,10 @@ def decoder(diff_Y, diff_Cb, diff_Cr, qf, n_lines, n_columns):
     # Remove image padding
     img_without_padding = without_padding_function(
         matrix_joined_rgb, n_lines, n_columns)
-    fig.add_subplot(1, 2, 2)
-    plt.title("Final Image")
-    plt.imshow(img_without_padding)
 
     #print(f"Final shape: {img_without_padding.shape}")
 
-    return img_without_padding
+    return img_without_padding, Y
 # -------------------------------------------------------------------------------------------- #
 
 
@@ -602,8 +608,9 @@ def main():
     (lines, columns, channels) = img.shape
 
     # retornar sempre o mais recente !!!
-    Y_dct, Cb_dct, Cr_dct, qf = encoder(img, lines, columns)
-    final_img = decoder(Y_dct, Cb_dct, Cr_dct, qf, lines, columns)
+    Y_dct, Cb_dct, Cr_dct, qf, Y_e = encoder(img, lines, columns)
+    final_img, Y_d = decoder(Y_dct, Cb_dct, Cr_dct, qf, lines, columns)
+    error_plot(Y_e, Y_d, final_img)
 
     # Print statistics
     statistics(img, final_img, qf, img_name)
