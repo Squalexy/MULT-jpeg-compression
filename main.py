@@ -316,6 +316,7 @@ def quality_factor(Q, qf):
         Qs = np.ones(Q.shape, dtype=np.uint8)
 
     Qs[Qs > 255] = 255
+    Qs[Qs < 1] = 1
 
     return Qs
 
