@@ -10,6 +10,8 @@ import math
 from scipy import stats
 from sklearn.metrics import mean_squared_error
 
+from PIL import Image
+import PIL
 # Ex 3.1
 
 
@@ -359,7 +361,8 @@ def inverse_coefficients_dc(diff, blocks):
 # -------------------------------------------------------------------------------------------- #
 # Ex 10
 def MSE(original_image, recovered_image):
-    mse = np.sum(abs(original_image - recovered_image) ** 2)
+    mse = np.sum((original_image.astype(float) -
+                  recovered_image.astype(float)) ** 2)
     mse /= float(original_image.shape[0] * original_image.shape[1])
     return mse
 
@@ -370,14 +373,15 @@ def RMSE(mse):
 
 
 def SNR(original_image, mse):
-    P = np.sum(original_image ** 2)
+    P = np.sum(original_image.astype(float) ** 2)
     P /= float(original_image.shape[0] * original_image.shape[1])
     snr = 10 * math.log10(P/mse)
     return snr
 
 
 def PSNR(mse, original_image):
-    max_ = max(original_image.flatten()) ** 2
+    original = original_image.astype(float)
+    max_ = np.max(original) ** 2
     psnr = 10 * math.log10(max_/mse)
     return psnr
 
@@ -509,17 +513,17 @@ def encoder(img, lines, columns):
     Cb_dct, Cb_dct_log = dct(Cb_d0, 8, 8)
     Cr_dct, Cr_dct_log = dct(Cr_d0, 8, 8)
 
-    # Ploting
+    # Plotting
     plot_1x3(Y_dct_log, Cb_dct_log, Cr_dct_log, "Y DCT", "Cb DCT", "Cr DCT")
 
-    qf = np.array([10, 25, 50, 75, 100, 1])
+    qf = np.array([10, 25, 50, 75, 100])
 
     # 8.1
 
     Q_Y_with_tile, Q_CbCr_with_tile = get_Q_matrixes(Y_dct, Cb_dct, 8)
 
-    Qs_Y = quality_factor(Q_Y_with_tile, qf[4])
-    Qs_CbCr = quality_factor(Q_CbCr_with_tile, qf[4])
+    Qs_Y = quality_factor(Q_Y_with_tile, qf[3])
+    Qs_CbCr = quality_factor(Q_CbCr_with_tile, qf[3])
 
     quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct = quantized_dct_coefficients_8x8(
         Y_dct, Cb_dct, Cr_dct, Qs_Y, Qs_CbCr)
@@ -537,7 +541,7 @@ def encoder(img, lines, columns):
     plot_1x3(np.log(np.abs(diff_Y) + 0.0001), np.log(np.abs(diff_Cb) + 0.0001),
              np.log(np.abs(diff_Cr) + 0.0001), "Y DPCM", "Cb DPCM", "Cr DPCM")
 
-    return diff_Y, diff_Cb, diff_Cr, qf[4], Y
+    return diff_Y, diff_Cb, diff_Cr, qf[3], Y
 
 
 def decoder(diff_Y, diff_Cb, diff_Cr, qf, n_lines, n_columns):
@@ -587,8 +591,6 @@ def decoder(diff_Y, diff_Cb, diff_Cr, qf, n_lines, n_columns):
     img_without_padding = without_padding_function(
         matrix_joined_rgb, n_lines, n_columns)
 
-    #print(f"Final shape: {img_without_padding.shape}")
-
     return img_without_padding, Y
 # -------------------------------------------------------------------------------------------- #
 
@@ -602,12 +604,8 @@ def main():
     img_path = dir_path + "/imagens/" + img_name + ".bmp"
     img = read_image(img_path)
 
-    # draw_plot("Original Image", img)
-
-    #print(f"Initial shape: {img.shape}")
     (lines, columns, channels) = img.shape
 
-    # retornar sempre o mais recente !!!
     Y_dct, Cb_dct, Cr_dct, qf, Y_e = encoder(img, lines, columns)
     final_img, Y_d = decoder(Y_dct, Cb_dct, Cr_dct, qf, lines, columns)
     error_plot(Y_e, Y_d, final_img)
